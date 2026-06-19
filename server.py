@@ -20,6 +20,7 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[Message]
+    think: bool = False
 
 
 def trim_to_context(messages: list[dict]) -> tuple[list[dict], bool]:
@@ -50,7 +51,7 @@ async def chat(req: ChatRequest):
             async with client.stream(
                 "POST",
                 f"{OLLAMA_BASE}/api/chat",
-                json={"model": MODEL, "messages": messages, "stream": True},
+                json={"model": MODEL, "messages": messages, "stream": True, "think": req.think},
             ) as resp:
                 async for line in resp.aiter_lines():
                     if not line.strip():
