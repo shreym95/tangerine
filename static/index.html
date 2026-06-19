@@ -97,13 +97,23 @@ html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Sego
   margin-top: 3px; padding: 0 5px;
 }
 
-/* Streaming cursor */
-.streaming::after {
-  content: '▋'; display: inline;
-  animation: blink 0.75s step-end infinite;
-  color: var(--muted); margin-left: 1px;
+/* Typing dots (thinking phase, before content arrives) */
+.typing-dots {
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 1px;
 }
-@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+.typing-dots span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted); opacity: 0.5;
+  animation: tdot 1.3s ease-in-out infinite;
+  display: block;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.18s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes tdot {
+  0%, 70%, 100% { transform: translateY(0); opacity: 0.45; }
+  35%            { transform: translateY(-5px); opacity: 1; }
+}
 
 /* Trim notice */
 .trim-notice {
@@ -259,7 +269,15 @@ function makeRow(role, text, time, streaming) {
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble' + (streaming ? ' streaming' : '');
-  bubble.textContent = text;
+
+  if (streaming) {
+    const dots = document.createElement('div');
+    dots.className = 'typing-dots';
+    dots.innerHTML = '<span></span><span></span><span></span>';
+    bubble.appendChild(dots);
+  } else {
+    bubble.textContent = text;
+  }
 
   const ts = document.createElement('div');
   ts.className = 'ts';
@@ -347,6 +365,10 @@ async function send() {
           if (evt.type === 'trimmed') {
             addTrimNotice();
           } else if (evt.type === 'content') {
+            if (!acc) {
+              const dots = aBubble.querySelector('.typing-dots');
+              if (dots) dots.remove();
+            }
             acc += evt.text;
             aBubble.textContent = acc;
             scrollBottom();
