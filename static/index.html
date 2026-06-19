@@ -175,36 +175,13 @@ body {
 #chat::-webkit-scrollbar-track { background: transparent; }
 #chat::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
 
-/* ── Empty state ──────────────────────────────────────── */
-#empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  pointer-events: none;
-  user-select: none;
-}
-
-.empty-orb {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, rgba(255,207,150,0.55), rgba(232,144,106,0.38));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  box-shadow: 0 4px 20px rgba(232,144,106,0.18);
-}
-
-.empty-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted);
-  letter-spacing: 0.01em;
-  opacity: 0.65;
+/* ── Welcome bubbles ──────────────────────────────────── */
+.welcome-bubble .bubble {
+  background: var(--bubble-bot);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 0 0 0.5px rgba(0,0,0,0.05);
+  border-bottom-left-radius: var(--r-sm);
+  color: var(--text-2);
+  font-style: italic;
 }
 
 /* ── Message rows ─────────────────────────────────────── */
@@ -455,12 +432,7 @@ body {
     </div>
   </div>
 
-  <div id="chat">
-    <div id="empty">
-      <div class="empty-orb">🍊</div>
-      <span class="empty-label">say something</span>
-    </div>
-  </div>
+  <div id="chat"></div>
 
   <div id="input-area">
     <textarea id="msg-input" placeholder="Message" rows="1"></textarea>
@@ -483,7 +455,6 @@ let thinkMode = JSON.parse(localStorage.getItem('tangerine_think') || 'false');
 const chatEl    = document.getElementById('chat');
 const inputEl   = document.getElementById('msg-input');
 const sendBtn   = document.getElementById('send-btn');
-const emptyEl   = document.getElementById('empty');
 const thinkBtn  = document.getElementById('think-btn');
 
 // ── Persistence ──────────────────────────────────────────
@@ -564,7 +535,19 @@ function splitIntoBatches(text) {
 // ── DOM helpers ───────────────────────────────────────────
 function scrollBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
 
-function updateEmpty() { emptyEl.style.display = messages.length ? 'none' : 'flex'; }
+function renderWelcome() {
+  const lines = [
+    "hey 👋 i'm tangerine, an AI chatbot built in-house by shrey.",
+    "feel free to use me for anything. your data is safe inside this house 🏠"
+  ];
+  lines.forEach((text, i) => {
+    const { row, bubble } = makeRow('assistant', text, '', false);
+    row.classList.add('welcome-bubble');
+    row.style.animationDelay = `${i * 0.18}s`;
+    row.querySelector('.ts').remove();
+    chatEl.appendChild(row);
+  });
+}
 
 function makeRow(role, text, time, streaming) {
   const row = document.createElement('div');
@@ -600,7 +583,12 @@ function addTrimNotice() {
 
 // ── Render all from messages[] ────────────────────────────
 function renderAll() {
-  Array.from(chatEl.children).forEach(el => { if (el.id !== 'empty') el.remove(); });
+  chatEl.innerHTML = '';
+  if (messages.length === 0) {
+    renderWelcome();
+    scrollBottom();
+    return;
+  }
   for (const m of messages) {
     if (m.role === 'assistant') {
       for (const batch of splitIntoBatches(m.content)) {
@@ -610,11 +598,10 @@ function renderAll() {
         chatEl.appendChild(row);
       }
     } else {
-      const { row, bubble } = makeRow('user', m.content, m.time, false);
+      const { row } = makeRow('user', m.content, m.time, false);
       chatEl.appendChild(row);
     }
   }
-  updateEmpty();
   scrollBottom();
 }
 
@@ -631,7 +618,9 @@ async function send() {
   const uTime = now();
   messages.push({ role: 'user', content: text, time: uTime });
   save();
-  updateEmpty();
+
+  // Clear welcome bubbles on first real message
+  if (messages.length === 1) chatEl.innerHTML = '';
 
   const { row: uRow } = makeRow('user', text, uTime, false);
   chatEl.appendChild(uRow);
